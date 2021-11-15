@@ -28,6 +28,21 @@ class Todo(db.Model):
 	def __repr__(self):
 		return f'Todo: <{self.name}>'
 
+assoc_table = db.Table('shared_todo_user', db.Model.metadata,
+    db.Column('shared_todo_id', db.ForeignKey('shared_todo.id'), primary_key=True),
+    db.Column('member_id', db.ForeignKey('user.id'), primary_key=True)
+)
+
+class SharedTodo(db.Model):
+	id = db.Column(db.Integer, primary_key=True, index=True)
+	name = db.Column(db.String(1024), nullable=False)
+	is_completed = db.Column(db.Boolean, default=False)
+	public_id = db.Column(db.String, nullable=False)
+	members = db.relationship('User', secondary=assoc_table, backref="shared_todos")
+	
+	def __repr__(self):
+		return f'SharedTodo: <{self.name}>'
+
 # generate database schema on startup, if not exists:
 db.create_all()
 db.session.commit()
@@ -205,6 +220,19 @@ def delete_todo(id):
 	return {
 		'success': 'Data deleted successfully'
 	}
+
+@app.route('/shared-todos/')
+def get_shared_todos():
+	return jsonify([
+		{ 
+			'id': shared_todo.public_id, 'name': shared_todo.name,
+			'members': [{
+				'name': member.name,
+				'email': member.email,
+				'public_id': member.public_id
+			} for member in shared_todo.members]
+		} for shared_todo in SharedTodo.query.all()
+	])
 
 if __name__ == '__main__':
 	app.run()
