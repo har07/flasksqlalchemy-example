@@ -253,5 +253,33 @@ def get_shared_todos():
     } for shared_todo in SharedTodo.query.all()
   ])
 
+@app.route('/shared-todos/', methods=['POST'])
+def create_shared_todos():
+  data = request.get_json()
+  if not 'name' in data or not 'email' in data:
+    return jsonify({
+      'error': 'Bad Request',
+      'message': 'Name of todo or id of owners not given'
+    }), 400
+
+  todo = SharedTodo(
+    name=data['name'], is_completed=False, public_id=str(uuid.uuid4())
+  )
+  user=User.query.filter_by(email=data['email']).first()
+  if not user:
+    return {
+      'error': 'Bad request',
+      'message': 'Invalid email, no user with that email'
+    }
+
+  todo.members.append(user)
+  db.session.add(todo)
+  db.session.commit()
+  return jsonify([
+    { 
+      'id': todo.id
+    }
+  ])
+
 if __name__ == '__main__':
   app.run()
